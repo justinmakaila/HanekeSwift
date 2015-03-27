@@ -40,8 +40,8 @@ public extension HanekeGlobals {
             
         }
         
-        static var SetImageFetcherKey = 0
-        static var SetBackgroundImageFetcherKey = 1
+        public static var SetImageFetcherKey = 0
+        public static var SetBackgroundImageFetcherKey = 1
     }
     
 }
