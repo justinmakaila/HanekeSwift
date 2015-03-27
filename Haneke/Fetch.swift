@@ -19,19 +19,19 @@ enum FetchState<T> {
 
 public class Fetch<T> {
     
-    public typealias Succeeder = (T) -> ()
+    public typealias Success = (T) -> ()
     
-    public typealias Failer = (NSError?) -> ()
+    public typealias Failure = (NSError?) -> ()
     
-    private var onSuccess : Succeeder?
+    private var onSuccess: Success?
     
-    private var onFailure : Failer?
+    private var onFailure: Failure?
     
     private var state : FetchState<T> = FetchState.Pending
     
     public init() {}
     
-    public func onSuccess(onSuccess : Succeeder) -> Self {
+    public func onSuccess(onSuccess: Success) -> Self {
         self.onSuccess = onSuccess
         switch self.state {
         case FetchState.Success(let wrapper):
@@ -42,7 +42,7 @@ public class Fetch<T> {
         return self
     }
     
-    public func onFailure(onFailure : Failer) -> Self {
+    public func onFailure(onFailure: Failure) -> Self {
         self.onFailure = onFailure
         switch self.state {
         case FetchState.Failure(let error):
@@ -53,17 +53,17 @@ public class Fetch<T> {
         return self
     }
     
-    func succeed(value : T) {
+    public func succeed(value : T) {
         self.state = FetchState.Success(Wrapper(value))
         self.onSuccess?(value)
     }
     
-    func fail(_ error : NSError? = nil) {
+    public func fail(_ error : NSError? = nil) {
         self.state = FetchState.Failure(error)
         self.onFailure?(error)
     }
     
-    var hasFailed : Bool {
+    public var hasFailed : Bool {
         switch self.state {
         case FetchState.Failure(_):
             return true
@@ -72,7 +72,7 @@ public class Fetch<T> {
             }
     }
     
-    var hasSucceeded : Bool {
+    public var hasSucceeded : Bool {
         switch self.state {
         case FetchState.Success(_):
             return true

@@ -33,11 +33,11 @@ extension HanekeGlobals {
     
 }
 
-public class Cache<T : DataConvertible where T.Result == T, T : DataRepresentable> {
+public class Cache<T: DataConvertible where T.Result == T, T : DataRepresentable> {
     
-    let name : String
+    let name: String
     
-    let memoryWarningObserver : NSObjectProtocol!
+    let memoryWarningObserver: NSObjectProtocol!
     
     public init(name : String) {
         self.name = name
@@ -148,7 +148,7 @@ public class Cache<T : DataConvertible where T.Result == T, T : DataRepresentabl
     
     // MARK: Formats
 
-    var formats : [String : (Format<T>, NSCache, DiskCache)] = [:]
+    public var formats : [String : (Format<T>, NSCache, DiskCache)] = [:]
     
     public func addFormat(format : Format<T>) {
         let name = format.name
