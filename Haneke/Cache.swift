@@ -9,7 +9,7 @@
 import UIKit
 
 // Used to add T to NSCache
-class ObjectWrapper : NSObject {
+public class ObjectWrapper : NSObject {
     let value: Any
     
     init(value: Any) {
