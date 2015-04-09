@@ -296,18 +296,18 @@
 		A095C9581980418C00CD0F4C /* Haneke */ = {
 			isa = PBXGroup;
 			children = (
+				A095C95B1980418C00CD0F4C /* Haneke.h */,
 				A095C972198041D100CD0F4C /* Cache.swift */,
-				A0720DE519EF2A73000FEE83 /* CryptoSwift */,
 				A0E8BFDB19CCAE1D00A4E2B0 /* Data.swift */,
 				A0D7D68019978F9A000CAF46 /* DiskCache.swift */,
 				8C0D39C519CF4CB900452BC4 /* DiskFetcher.swift */,
-				A0D7D6821997B2D8000CAF46 /* Extensions */,
 				A01E148219D7FA54000247ED /* Fetch.swift */,
 				A03F7E8119BF94AA0002511F /* Fetcher.swift */,
 				A0FDBF9119AD444500326016 /* Format.swift */,
-				A095C95B1980418C00CD0F4C /* Haneke.h */,
 				A03F7E7D19BF59880002511F /* Haneke.swift */,
 				A00D360119C355C30007586E /* NetworkFetcher.swift */,
+				A0D7D6821997B2D8000CAF46 /* Extensions */,
+				A0720DE519EF2A73000FEE83 /* CryptoSwift */,
 				A095C9591980418C00CD0F4C /* Supporting Files */,
 				A04210F719C9025C005000B8 /* UIKit */,
 			);

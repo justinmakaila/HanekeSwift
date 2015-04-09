@@ -51,10 +51,13 @@ extension UIImage {
             return self
         }
         
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
         let pixelSize = CGSizeMake(self.size.width * self.scale, self.size.height * self.scale)
-        if let context = CGBitmapContextCreate(nil, UInt(pixelSize.width), UInt(pixelSize.height), CGImageGetBitsPerComponent(originalImageRef), 0, colorSpace, bitmapInfo) {
-            
+        let width = Int(pixelSize.width)
+        let height = Int(pixelSize.height)
+        let bitsPerComponent = CGImageGetBitsPerComponent(originalImageRef)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+        if let context = CGBitmapContextCreate(nil, width, height, bitsPerComponent, 0, colorSpace, bitmapInfo) {
             let imageRect = CGRectMake(0, 0, pixelSize.width, pixelSize.height)
             UIGraphicsPushContext(context)
             

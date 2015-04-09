@@ -11,7 +11,7 @@ import Foundation
 public class DiskCache {
     
     public class func basePath() -> String {
-        let cachesPath = NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory.CachesDirectory, NSSearchPathDomainMask.UserDomainMask, true)[0] as String
+        let cachesPath = NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory.CachesDirectory, NSSearchPathDomainMask.UserDomainMask, true).first as! String
         let hanekePathComponent = HanekeGlobals.Domain
         let basePath = cachesPath.stringByAppendingPathComponent(hanekePathComponent)
         // TODO: Do not recaculate basePath value
@@ -33,6 +33,7 @@ public class DiskCache {
     public lazy var cacheQueue : dispatch_queue_t = {
         let queueName = HanekeGlobals.Domain + "." + self.path.lastPathComponent
         let cacheQueue = dispatch_queue_create(queueName, nil)
+        
         return cacheQueue
     }()
     
@@ -45,51 +46,53 @@ public class DiskCache {
         })
     }
     
-    public func setData(getData : @autoclosure () -> NSData?, key : String) {
-        dispatch_async(cacheQueue, {
-            self.setDataSync(getData, key: key)
-        })
+    public func set(key: String, @autoclosure(escaping) value: () -> NSData?) {
+        dispatch_async(cacheQueue) {
+            self.setSync(key, value: value)
+        }
     }
     
-    public func fetchData(key : String, failure fail : ((NSError?) -> ())? = nil, success succeed : (NSData) -> ()) {
-        dispatch_async(cacheQueue, {
+    public func fetchData(key: String, failure: ((NSError?) -> ())? = nil, success: (NSData) -> ()) {
+        dispatch_async(cacheQueue) {
             let path = self.pathForKey(key)
+            
             var error: NSError? = nil
             if let data = NSData(contentsOfFile: path, options: NSDataReadingOptions.allZeros, error: &error) {
                 dispatch_async(dispatch_get_main_queue(), {
-                   succeed(data)
+                   success(data)
                 })
                 self.updateDiskAccessDateAtPath(path)
-            } else if let block = fail {
+            } else if let block = failure {
                 dispatch_async(dispatch_get_main_queue(), {
                     block(error)
                 })
             }
-        })
+        }
     }
 
-    public func removeData(key : String) {
-        dispatch_async(cacheQueue, {
+    public func removeData(key: String) {
+        dispatch_async(cacheQueue) {
             let fileManager = NSFileManager.defaultManager()
             let path = self.pathForKey(key)
-            let attributesOpt : NSDictionary? = fileManager.attributesOfItemAtPath(path, error: nil)
-            var error: NSError? = nil
-            let success = fileManager.removeItemAtPath(path, error:&error)
-            if (success) {
+            let attributesOpt: NSDictionary? = fileManager.attributesOfItemAtPath(path, error: nil)
+            
+            var removeError: NSError?
+            if fileManager.removeItemAtPath(path, error:&removeError) {
                 if let attributes = attributesOpt {
                     self.size -= attributes.fileSize()
                 }
             } else {
-                println("Failed to remove key \(key) with error \(error!)")
+                println("Failed to remove key \(key) with error \(removeError!)")
             }
-        })
+        }
     }
     
     public func removeAllData() {
         let fileManager = NSFileManager.defaultManager()
         let cachePath = self.path
-        dispatch_async(cacheQueue, {
-            var error: NSError? = nil
+        
+        dispatch_async(cacheQueue) {
+            var error: NSError?
             if let contents = fileManager.contentsOfDirectoryAtPath(cachePath, error: &error) as? [String] {
                 for pathComponent in contents {
                     let path = cachePath.stringByAppendingPathComponent(pathComponent)
@@ -97,27 +100,28 @@ public class DiskCache {
                         Log.error("Failed to remove path \(path)", error)
                     }
                 }
+                
                 self.calculateSize()
             } else {
                 Log.error("Failed to list directory", error)
             }
-        })
+        }
     }
 
-    public func updateAccessDate(getData : @autoclosure () -> NSData?, key : String) {
-        dispatch_async(cacheQueue, {
+    public func updateAccessDate(key : String, @autoclosure(escaping) value: () -> NSData?) {
+        dispatch_async(cacheQueue) {
             let path = self.pathForKey(key)
             let fileManager = NSFileManager.defaultManager()
-            if (!self.updateDiskAccessDateAtPath(path) && !fileManager.fileExistsAtPath(path)){
-                let data = getData()
-                self.setDataSync(data, key: key)
+            
+            if !self.updateDiskAccessDateAtPath(path) && !fileManager.fileExistsAtPath(path) {
+                self.setSync(key, value: value)
             }
-        })
+        }
     }
 
     public func pathForKey(key : String) -> String {
         var escapedFilename = key.escapedFilename()
-        let filename = countElements(escapedFilename) < Int(NAME_MAX) ? escapedFilename : key.MD5Filename()
+        let filename = count(escapedFilename) < Int(NAME_MAX) ? escapedFilename : key.MD5Filename()
         let keyPath = self.path.stringByAppendingPathComponent(filename)
         return keyPath
     }
@@ -158,21 +162,25 @@ public class DiskCache {
         }
     }
     
-    private func setDataSync(getData : @autoclosure () -> NSData?, key : String) {
-        let path = self.pathForKey(key)
-        var error: NSError?
-        if let data = getData() {
+    private func setSync(key: String, value: () -> NSData?) {
+        let path = pathForKey(key)
+        
+        var writeError: NSError?
+        if let data = value() {
             let fileManager = NSFileManager.defaultManager()
-            let previousAttributes : NSDictionary? = fileManager.attributesOfItemAtPath(path, error: nil)
-            let success = data.writeToFile(path, options: NSDataWritingOptions.AtomicWrite, error:&error)
-            if (!success) {
-                Log.error("Failed to write key \(key)", error)
+            let previousAttributes: NSDictionary? = fileManager.attributesOfItemAtPath(path, error: nil)
+            
+            if !data.writeToFile(path, options: .AtomicWrite, error: &writeError) {
+                Log.error("Failed to write key \(key)", writeError)
             }
+            
             if let attributes = previousAttributes {
-                self.size -= attributes.fileSize()
+                size -= attributes.fileSize()
             }
-            self.size += data.length
-            self.controlCapacity()
+            
+            size += UInt64(data.length)
+            
+            controlCapacity()
         } else {
             Log.error("Failed to get data for key \(key)")
         }

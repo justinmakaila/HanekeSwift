@@ -37,28 +37,35 @@ public class Cache<T: DataConvertible where T.Result == T, T : DataRepresentable
     
     let name: String
     
-    let memoryWarningObserver: NSObjectProtocol!
+    var memoryWarningObserver: NSObjectProtocol?
     
     public init(name : String) {
         self.name = name
         
-        let notifications = NSNotificationCenter.defaultCenter()
-        // Using block-based observer to avoid subclassing NSObject
-        memoryWarningObserver = notifications.addObserverForName(UIApplicationDidReceiveMemoryWarningNotification,
-            object: nil,
-            queue: NSOperationQueue.mainQueue(),
-            usingBlock: { [unowned self] (notification : NSNotification!) -> Void in
-                self.onMemoryWarning()
-            }
-        )
-        
+        setupMemoryObserver()
+
         var originalFormat = Format<T>(name: HanekeGlobals.Cache.OriginalFormatName)
-        self.addFormat(originalFormat)
+        addFormat(originalFormat)
     }
     
     deinit {
-        let notifications = NSNotificationCenter.defaultCenter()
-        notifications.removeObserver(memoryWarningObserver, name: UIApplicationDidReceiveMemoryWarningNotification, object: nil)
+        if let memoryWarningObserver = memoryWarningObserver {
+            let notificationCenter = NSNotificationCenter.defaultCenter()
+            notificationCenter.removeObserver(memoryWarningObserver, name: UIApplicationDidReceiveMemoryWarningNotification, object: nil)
+        }
+    }
+
+    private func setupMemoryObserver() {
+        // Using block-based observer to avoid subclassing NSObject
+        let notificationCenter = NSNotificationCenter.defaultCenter()
+        memoryWarningObserver = notificationCenter.addObserverForName(
+            UIApplicationDidReceiveMemoryWarningNotification,
+            object: nil,
+            queue: NSOperationQueue.mainQueue(),
+            usingBlock: { [unowned self] (notification : NSNotification!) in
+                self.onMemoryWarning()
+            }
+        )
     }
     
     public func set(#value : T, key: String, formatName : String = HanekeGlobals.Cache.OriginalFormatName, success succeed : ((T) -> ())? = nil) {
@@ -66,8 +73,10 @@ public class Cache<T: DataConvertible where T.Result == T, T : DataRepresentable
             self.format(value: value, format: format) { formattedValue in
                 let wrapper = ObjectWrapper(value: formattedValue)
                 memoryCache.setObject(wrapper, forKey: key)
+                
                 // Value data is sent as @autoclosure to be executed in the disk cache queue.
-                diskCache.setData(self.dataFromValue(formattedValue, format: format), key: key)
+                diskCache.set(key, value: self.dataFromValue(formattedValue, format: format))
+                
                 succeed?(formattedValue)
             }
         } else {
@@ -81,7 +90,9 @@ public class Cache<T: DataConvertible where T.Result == T, T : DataRepresentable
             if let wrapper = memoryCache.objectForKey(key) as? ObjectWrapper {
                 if let result = wrapper.value as? T {
                     fetch.succeed(result)
-                    diskCache.updateAccessDate(dataFromValue(result, format: format), key: key)
+                    
+                    diskCache.updateAccessDate(key, value: self.dataFromValue(result, format: format))
+                    
                     return fetch
                 }
             }
@@ -264,7 +275,7 @@ public class Cache<T: DataConvertible where T.Result == T, T : DataRepresentable
     // MARK: Convenience fetch
     // Ideally we would put each of these in the respective fetcher file as a Cache extension. Unfortunately, this fails to link when using the framework in a project as of Xcode 6.1.
     
-    public func fetch(#key : String, value getValue : @autoclosure () -> T.Result, formatName : String = HanekeGlobals.Cache.OriginalFormatName, success succeed : Fetch<T>.Success? = nil) -> Fetch<T> {
+    public func fetch(#key : String, @autoclosure(escaping) value getValue : () -> T.Result, formatName : String = HanekeGlobals.Cache.OriginalFormatName, success succeed : Fetch<T>.Success? = nil) -> Fetch<T> {
         let fetcher = SimpleFetcher<T>(key: key, value: getValue)
         return self.fetch(fetcher: fetcher, formatName: formatName, success: succeed)
     }
